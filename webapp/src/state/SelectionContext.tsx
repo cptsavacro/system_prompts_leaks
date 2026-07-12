@@ -19,6 +19,8 @@ interface SelectionContextValue {
   togglePin: (path: string) => void
   addPinned: (paths: string[]) => void
   removePinned: (path: string) => void
+  /** Replaces the working set wholesale, e.g. restoring a draft's saved sourceRefs on reopen. */
+  replacePinned: (paths: string[]) => void
   clearPinned: () => void
 }
 
@@ -43,10 +45,14 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     setPinned((prev) => prev.filter((p) => p !== path))
   }, [])
 
+  const replacePinned = useCallback((paths: string[]) => {
+    setPinned([...new Set(paths)])
+  }, [])
+
   const isPinned = useCallback((path: string) => pinned.includes(path), [pinned])
   const clearPinned = useCallback(() => setPinned([]), [])
 
-  const value: SelectionContextValue = { pinned, isPinned, togglePin, addPinned, removePinned, clearPinned }
+  const value: SelectionContextValue = { pinned, isPinned, togglePin, addPinned, removePinned, replacePinned, clearPinned }
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>
 }
 

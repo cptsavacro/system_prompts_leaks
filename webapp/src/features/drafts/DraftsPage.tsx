@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { deleteDraft, listDrafts, saveDraft, type Draft } from '@/lib/db'
 import { loadContentBatch } from '@/lib/contentLoader'
@@ -10,7 +10,7 @@ export function DraftsPage() {
   const [params, setParams] = useSearchParams()
   const id = params.get('id')
   const { byPath } = useMetadata()
-  const { pinned, removePinned } = useSelection()
+  const { pinned, removePinned, replacePinned } = useSelection()
 
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [title, setTitle] = useState('')
@@ -22,20 +22,29 @@ export function DraftsPage() {
 
   useEffect(refreshDrafts, [])
 
+  // Tracks the draft id whose sourceRefs we've already restored into the
+  // working set, so re-renders of `drafts` (e.g. right after Save) don't
+  // repeatedly stomp on pins the user makes while a draft stays open.
+  const hydratedIdRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!id) {
+      hydratedIdRef.current = null
       setTitle('')
       setContent('')
       setSavedAt(null)
       return
     }
+    if (hydratedIdRef.current === id) return
     const existing = drafts.find((d) => d.id === id)
     if (existing) {
       setTitle(existing.title)
       setContent(existing.content)
       setSavedAt(existing.updatedAt)
+      replacePinned(existing.sourceRefs)
+      hydratedIdRef.current = id
     }
-  }, [id, drafts])
+  }, [id, drafts, replacePinned])
 
   useEffect(() => {
     const refs = pinned.map((p) => byPath.get(p)).filter((e): e is NonNullable<typeof e> => Boolean(e))
