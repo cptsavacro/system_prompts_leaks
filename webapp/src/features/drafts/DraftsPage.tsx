@@ -52,7 +52,13 @@ export function DraftsPage() {
       setRefContents(new Map())
       return
     }
-    loadContentBatch(refs.map((e) => ({ vendor: e.vendor, path: e.path }))).then(setRefContents)
+    let cancelled = false
+    loadContentBatch(refs.map((e) => ({ vendor: e.vendor, path: e.path }))).then((result) => {
+      if (!cancelled) setRefContents(result)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [pinned, byPath])
 
   const handleSave = async () => {

@@ -47,7 +47,13 @@ export function ComparePage() {
       .filter((e): e is NonNullable<typeof e> => Boolean(e))
       .map((e) => ({ vendor: e.vendor, path: e.path }))
     if (refs.length === 0) return
-    loadContentBatch(refs).then(setContents)
+    let cancelled = false
+    loadContentBatch(refs).then((result) => {
+      if (!cancelled) setContents(result)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [paths, byPath])
 
   if (metaLoading) return <div className="p-6 text-sm text-neutral-500">Loading index…</div>
