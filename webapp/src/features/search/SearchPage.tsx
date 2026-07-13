@@ -16,6 +16,8 @@ export function SearchPage() {
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
+      setLoading(false)
+      setError(null)
       return
     }
     let cancelled = false
