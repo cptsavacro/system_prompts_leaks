@@ -68,8 +68,9 @@ is available.
      e.g. `Anthropic/Official/`) are skipped — they don't map to a single file.
    - Paths are `decodeURIComponent`-ed (README uses `%20` for spaces, e.g.
      `Claude%20Code/...`).
-2. Walks every top-level directory except `.git`, `.github`, `webapp`,
-   `node_modules` (vendor folders are auto-discovered, not hardcoded).
+2. Walks every top-level directory except dot-directories (`.git`,
+   `.github`, `.claude`, …), `webapp`, and `node_modules` (vendor folders
+   are auto-discovered, not hardcoded).
    For each file it records `vendor`, `subcategory` (the subfolder chain, or
    `null`), `slug`, `ext`, `size`, `wordCount`, and infers `tags` from the
    filename (variant suffixes like `api`, `thinking`, `instant`, `no-tools`,
@@ -195,3 +196,78 @@ Needs a real Android SDK / device (not verifiable in a plain Node
 environment): `./gradlew assembleDebug`/`assembleRelease`, installing and
 running the APK, and on-device checks of offline behavior, IndexedDB, and
 the export download/share flow in the Android WebView.
+
+## Current status (audited 2026-07-18)
+
+Everything on PR #1's branch builds clean (`tsc -b`, `vite build`, oxlint —
+two cosmetic `react/only-export-components` fast-refresh warnings in the
+two Context files are expected and harmless). All four issues raised by
+automated review on PR #1 were fixed and their threads resolved:
+
+1. Drafts now restore their saved `sourceRefs` into the working set on
+   reopen (`replacePinned` in `SelectionContext`, ref-guarded hydration in
+   `DraftsPage`).
+2. + 3. Compare and the Drafts reference panel discard stale
+   `loadContentBatch` responses (cancelled-flag guard, same pattern as
+   `MetadataContext`/`SearchPage`).
+4. Clearing the search query also resets `loading`/`error`, so the page
+   can't stick on "Searching…" or a stale error banner.
+
+The indexer also now skips **all** dot-directories during vendor
+auto-discovery — previously a repo-local `.claude/` config folder was
+indexed as a fake 13th vendor.
+
+Each of these was verified with a throwaway Playwright script driving the
+built app in the sandboxed Chromium (including artificially delaying chunk
+fetches to reproduce the races). Those scripts were **not** committed —
+see the roadmap below.
+
+## Known gaps and quirks
+
+- **`lib/db.ts` collections API is unused.** `listCollections` /
+  `saveCollection` / `deleteCollection` and the `collections` IndexedDB
+  store exist but no UI calls them — the intended "saved sets of doc paths
+  feeding Compare/Export" feature was never wired up. Either build that UI
+  or trim the API; don't let it drift.
+- **13 stale README links** (files that moved to `OpenAI/Codex/old/`,
+  `Mistral/le-chat.md`, …) — build warns on every run. Fixing the repo
+  README upstream would silence these; the app is unaffected.
+- **~105 files aren't linked from README** (bundled-skills, dated Official
+  snapshots) and use humanized-filename display names. Expected.
+- **Search index is ~2.5MB serialized** (full-content mode). Fine on
+  desktop; if first-search parse time on low-end Android is a problem, use
+  `INDEX_CONTENT_MODE=snippet` (documented above).
+- **The APK has still never been compiled** — no Android SDK in the dev
+  sandbox. The Capacitor project scaffolds/syncs clean, but the true
+  handoff (Gradle build + on-device WebView checks, especially the export
+  Blob-download flow) hasn't happened anywhere yet.
+
+## Roadmap / next steps (rough priority order)
+
+1. **Commit a repeatable smoke test.** Recreate the throwaway Playwright
+   verification as `webapp/e2e/` (playwright-core, launched against
+   `vite preview`): browse → search → viewer → pin → compare → draft
+   persistence → export-JSONL validation, plus the offline/service-worker
+   check and the stale-response race guards. This turns every future PR's
+   "did I break it?" into one command.
+2. **CI (GitHub Actions).** A workflow that runs `build:index`, `tsc -b`,
+   `oxlint`, `vite build`, and the smoke test on PRs touching `webapp/`.
+   A second, manually-triggered job using `android-actions/setup-android`
+   + `./gradlew assembleDebug` would finally produce a downloadable APK
+   artifact and close the Android verification gap.
+3. **Deploy the web app** — a GitHub Pages workflow publishing `dist/` on
+   pushes to main would make the reader usable without cloning anything.
+   (`vite.config.ts` already uses relative `base: './'`, so no path
+   changes needed.)
+4. **Finish or remove collections** (see Known gaps).
+5. **UX niceties, in rough order of value:** a "Recently updated" sort/
+   view on Browse (the `recentDate` data is already in the index); a
+   delete-confirmation on drafts (currently one misclick destroys a
+   draft); n-way diff or synced scrolling in Compare; keyboard shortcut
+   (`/`) to focus search.
+6. **Real branding** — replace the generated placeholder icons
+   (`scripts/gen-icons.mjs`) and wire `@capacitor/assets` for the Android
+   launcher icons/splash.
+7. **Dataset export variants** — optional per-vendor JSONL splits,
+   train/validation split, and a metadata-only CSV for corpus analysis,
+   if the local-LLM-training use case grows.

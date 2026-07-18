@@ -115,7 +115,7 @@ function main() {
   const { linkMeta } = parseReadme(readmeText)
 
   const topLevelDirs = readdirSync(REPO_ROOT, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && !EXCLUDED_TOP_LEVEL.has(e.name))
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.') && !EXCLUDED_TOP_LEVEL.has(e.name))
     .map((e) => e.name)
     .sort()
 

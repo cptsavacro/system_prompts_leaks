@@ -27,7 +27,7 @@ function toChatRecord(text: string) {
 }
 
 export function ExportPage() {
-  const { metadata, loading, error } = useMetadata()
+  const { metadata, loading, error, byPath } = useMetadata()
   const { pinned } = useSelection()
   const [selectedVendors, setSelectedVendors] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -42,11 +42,10 @@ export function ExportPage() {
     [metadata, selectedVendors, selectedTags],
   )
 
-  const workingSetEntries = useMemo(() => {
-    if (!metadata) return []
-    const byPath = new Map(metadata.files.map((f) => [f.path, f]))
-    return pinned.map((p) => byPath.get(p)).filter((e): e is FileEntry => Boolean(e))
-  }, [metadata, pinned])
+  const workingSetEntries = useMemo(
+    () => pinned.map((p) => byPath.get(p)).filter((e): e is FileEntry => Boolean(e)),
+    [byPath, pinned],
+  )
 
   const selectionForExport = scope === 'filtered' ? filtered : workingSetEntries
   const totalSize = selectionForExport.reduce((n, f) => n + f.size, 0)
