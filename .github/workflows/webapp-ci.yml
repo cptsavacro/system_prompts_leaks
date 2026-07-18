@@ -1,0 +1,57 @@
+name: webapp CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/webapp-ci.yml'
+  pull_request:
+    paths:
+      - 'webapp/**'
+      - '.github/workflows/webapp-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - run: npm ci
+
+      # Regenerates public/generated/** from ../<Vendor>/** + ../README.md.
+      # Also run by `npm run build`'s prebuild hook below, but broken out
+      # here so the file/vendor-count summary and any stale-README warnings
+      # show up as their own step in the log.
+      - name: Build content index
+        run: npm run build:index
+
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      # TODO(roadmap item 1): once webapp/e2e/ exists (a committed
+      # Playwright smoke test), add a step here to install its browser and
+      # run it against `npm run preview`, before the dist/ upload below.
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-dist
+          path: webapp/dist
+          retention-days: 7

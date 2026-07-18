@@ -250,11 +250,17 @@ see the roadmap below.
    persistence → export-JSONL validation, plus the offline/service-worker
    check and the stale-response race guards. This turns every future PR's
    "did I break it?" into one command.
-2. **CI (GitHub Actions).** A workflow that runs `build:index`, `tsc -b`,
-   `oxlint`, `vite build`, and the smoke test on PRs touching `webapp/`.
-   A second, manually-triggered job using `android-actions/setup-android`
-   + `./gradlew assembleDebug` would finally produce a downloadable APK
-   artifact and close the Android verification gap.
+2. ~~**CI (GitHub Actions).**~~ **Done** — `.github/workflows/webapp-ci.yml`
+   runs `build:index`, `tsc -b`, `oxlint`, and `vite build` on pushes/PRs
+   touching `webapp/**`, uploading `dist/` as an artifact. A separate
+   `.github/workflows/webapp-android-apk.yml` (manual `workflow_dispatch`
+   only) scaffolds Capacitor, runs `./gradlew assembleDebug`, and uploads
+   the APK — **this has not actually run yet**, since it needs a real
+   Android SDK that doesn't exist in the dev sandbox; treat its first real
+   run as the actual verification and be ready to adjust the JDK/SDK setup
+   if Gradle resolution fails. Neither workflow runs a smoke test yet —
+   there's a `TODO` marker in `webapp-ci.yml` for wiring that in once item 1
+   (below) lands.
 3. **Deploy the web app** — a GitHub Pages workflow publishing `dist/` on
    pushes to main would make the reader usable without cloning anything.
    (`vite.config.ts` already uses relative `base: './'`, so no path

@@ -1,0 +1,60 @@
+name: webapp Android APK (manual)
+
+# Manually-triggered: this repeats the `npx cap add android` / `npx cap
+# sync android` steps that are cheap and verified in the dev sandbox
+# (webapp/CLAUDE.md), then goes one step further and actually runs
+# `./gradlew assembleDebug` — the one step that needs a real Android SDK
+# and could never be verified locally. This workflow itself is therefore
+# UNVERIFIED until it has actually run here at least once; if the Gradle
+# step fails, check the Android Gradle Plugin / compileSdk version
+# Capacitor scaffolds against and adjust the JDK version or SDK packages
+# below to match.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      - name: Build web assets (runs build:index via prebuild)
+        run: npm run build
+
+      - name: Scaffold Capacitor Android project
+        run: npx cap add android
+
+      - name: Sync web assets into the Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: webapp/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-prompts-leaks-debug-apk
+          path: webapp/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
