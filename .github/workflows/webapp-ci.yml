@@ -1,15 +1,16 @@
 name: webapp CI
 
 on:
+  # No path filter: build-index.mjs (run below) reads README.md and every
+  # top-level vendor folder, not just webapp/**, so a content-only PR (a
+  # new prompt file, a filename tweak, a broken README table) can break the
+  # indexer or the generated offline assets just as easily as a change
+  # under webapp/ itself. The job is a ~30s build, cheap enough to run on
+  # every push/PR rather than trying to keep a path filter in sync with
+  # "everything build-index.mjs touches."
   push:
     branches: [main]
-    paths:
-      - 'webapp/**'
-      - '.github/workflows/webapp-ci.yml'
   pull_request:
-    paths:
-      - 'webapp/**'
-      - '.github/workflows/webapp-ci.yml'
   workflow_dispatch:
 
 jobs:

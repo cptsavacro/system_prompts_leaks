@@ -30,6 +30,13 @@ function loadSearchIndex(): Promise<MiniSearch> {
         return res.text()
       })
       .then((text) => MiniSearch.loadJSON(text, MINISEARCH_OPTIONS))
+      .catch((err: unknown) => {
+        // Don't cache a failed load — a transient issue (offline before the
+        // service worker has cached it, an SW update, a network blip)
+        // shouldn't lock search out for the rest of the session.
+        searchPromise = null
+        throw err
+      })
   }
   return searchPromise
 }
