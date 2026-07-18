@@ -64,6 +64,12 @@ export function DraftsPage() {
   const handleSave = async () => {
     const record = await saveDraft({ id: id ?? undefined, title: title || 'Untitled draft', content, sourceRefs: pinned })
     setSavedAt(record.updatedAt)
+    // Mark this draft as already hydrated before the id/drafts change below
+    // triggers the hydration effect — otherwise, for a brand-new draft
+    // (hydratedIdRef was still null), that effect would treat the just-saved
+    // record as unhydrated once refreshDrafts() resolves and clobber any
+    // edits made in the gap with the snapshot we just saved.
+    hydratedIdRef.current = record.id
     setParams({ id: record.id })
     refreshDrafts()
   }

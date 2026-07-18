@@ -8,10 +8,18 @@ function loadVendorChunk(vendor: string): Promise<VendorContentChunk> {
   const key = vendor.toLowerCase()
   let promise = chunkPromises.get(key)
   if (!promise) {
-    promise = fetch(`${ASSET_BASE}generated/content/${key}.json`).then((res) => {
-      if (!res.ok) throw new Error(`Failed to load content chunk for ${vendor}: ${res.status}`)
-      return res.json() as Promise<VendorContentChunk>
-    })
+    promise = fetch(`${ASSET_BASE}generated/content/${key}.json`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load content chunk for ${vendor}: ${res.status}`)
+        return res.json() as Promise<VendorContentChunk>
+      })
+      .catch((err: unknown) => {
+        // Don't cache a failed fetch — a transient issue (offline, a
+        // service-worker update, a network blip) shouldn't permanently
+        // lock this vendor's content out for the rest of the session.
+        chunkPromises.delete(key)
+        throw err
+      })
     chunkPromises.set(key, promise)
   }
   return promise
